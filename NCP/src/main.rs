@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 extern crate csv;
+mod cve_scanner;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -139,8 +140,10 @@ fn csv_parser()->Result<(), Box<dyn std::error::Error>>{
     let args:Vec<String> = env::args().collect();
     if args[2].as_str()=="-f" || args[2].as_str()=="--file"{
         let mut reader = csv::Reader::from_path(args[3].as_str())?;
+        let mut cves:Vec<String>=Vec::<String>::new();
         output_csv( format!("CVE,Risk,Host,Protocol,Port,Name,Metasploit\n"),"./output/first_report.csv").expect("error");
         output_csv( format!("Host,CVE,Name,See_Also,Descrition\n"),"./output/cve_refernce.csv").expect("error");
+        output_csv( format!("CVE\n"),"./output/cves.csv").expect("error");
         output_csv( format!("Host,Descrition\n"),"./output/host_information.csv").expect("error");
         for record in reader.records() {
             let record = record?;
@@ -151,6 +154,8 @@ fn csv_parser()->Result<(), Box<dyn std::error::Error>>{
                 let des= &record[9]; 
                 let cs = &record[11];
                 output_csv( format!("{},{},{},{},{}\n",&record[4],&record[1],&record[7],cs.replace("\n",";"),des.replace("\n",";")),"./output/cve_refernce.csv").expect("error");
+                cves.push(format!("{}",&record[1]));
+                //output_csv( format!("{},{}\n",&record[4],&record[1]),"./output/cves.csv").expect("error");
             }
             if &record[3] =="None"{
                 let des= &record[9];
@@ -159,6 +164,11 @@ fn csv_parser()->Result<(), Box<dyn std::error::Error>>{
             else{
                 continue
             }
+        }
+        cves.sort();
+        cves.dedup();
+        for line in cves{
+            output_csv( format!("{}\n",line),"./output/cves.csv").expect("error");
         }
     }
     else{
@@ -183,8 +193,8 @@ pub fn output_csv(contents:String,filepath:&str) -> Result<(),String>{
 }
     Ok(())
 }
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let args:Vec<String> = env::args().collect();
     match fs::create_dir("output") {
         Err(_why) => {},
@@ -194,7 +204,7 @@ fn main() {
         println!("Usage :");
         println!("-C        csv files concatenation mode");
         println!("-P        csv parse mode");
-        
+        println!("-S        cve scanner mode");   
     }
     else{
         match args[1].as_str(){
@@ -203,6 +213,9 @@ fn main() {
             },
             "-P" => {
                 csv_parser().expect("Usage -P -f csv file");
+            },
+            "-S" =>{
+                cve_scanner::nvd_scanner().await.expect("error");
             },
             _ =>()
         }
