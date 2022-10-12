@@ -10,7 +10,8 @@ use std::fs::OpenOptions;
 use std::{io::Write};
 use std::io::BufReader;
 use std::io::BufRead;
-
+extern crate walkdir;
+use walkdir::WalkDir;
 /*
 struct Record {
     pluginid:String,
@@ -42,28 +43,49 @@ struct Record {
 }
 */
 
-fn read_dir<P: AsRef<Path>>(dir_path: P) -> io::Result<Vec<String>> {
-    Ok(fs::read_dir(dir_path)?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            if entry.file_type().ok()?.is_file() {
-                match entry.path().extension(){
-                    Some(t)=>t,
-                    None=>panic!("Contains files with only an extension but no name")
-                };
-                if entry.path().extension().unwrap() == "csv"{
-                    Some(entry.path().to_string_lossy().into_owned())
-                }
-                else{
-                    None
-                }
-            } else {
-                None
+// fn read_dir<P: AsRef<Path>>(dir_path: P) -> io::Result<Vec<String>> {
+//     Ok(fs::read_dir(dir_path)?
+//         .filter_map(|entry| {
+//             let entry = entry.ok()?;
+//             if entry.file_type().ok()?.is_file() {
+//                 match entry.path().extension(){
+//                     Some(t)=>t,
+//                     None=>panic!("Contains files with only an extension but no name")
+//                 };
+//                 if entry.path().extension().unwrap() == "csv"{
+//                     Some(entry.path().to_string_lossy().into_owned())
+//                 }
+//                 else{
+//                     None
+//                 }
+//             } else {
+//                 None
+//             }
+//         })
+//         .collect())
+// }
+fn read_dir(dir_path:&str) ->io::Result<Vec<String>>{
+    let mut filelist:Vec<String>= Vec::<String>::new();
+    for entry in WalkDir::new(dir_path) {
+        if entry.as_ref().unwrap().path().is_file(){
+            match entry.as_ref().unwrap().path().extension(){
+                Some(e) => {
+                    if e =="csv"{
+                        filelist.push(entry.unwrap().path().to_string_lossy().to_string())
+                    }
+                    else{
+                        continue
+                    }
+                },
+                None =>()
             }
-        })
-        .collect())
+        }
+        else{
+            continue
+        }
+    }
+    Ok(filelist)
 }
-
 // fn file_concatenation()-> Result<(), Box<dyn std::error::Error>>{
 //     let args:Vec<String> = env::args().collect();
 //     for filelist in read_dir(args[2].as_str()).unwrap(){
@@ -144,7 +166,7 @@ fn csv_parser()->Result<(), Box<dyn std::error::Error>>{
         output_csv( format!("CVE,Risk,Host,Protocol,Port,Name,Metasploit\n"),"./output/first_report.csv").expect("error");
         output_csv( format!("Host,CVE,Name,See_Also,Descrition\n"),"./output/cve_refernce.csv").expect("error");
         output_csv( format!("CVE\n"),"./output/cves.csv").expect("error");
-        output_csv( format!("Host,Descrition\n"),"./output/host_information.csv").expect("error");
+        output_csv( format!("Host,CVE,Protocol,Port,Name,Descrition\n"),"./output/host_information.csv").expect("error");
         for record in reader.records() {
             let record = record?;
             if &record[3] != "None"{
@@ -155,11 +177,10 @@ fn csv_parser()->Result<(), Box<dyn std::error::Error>>{
                 let cs = &record[11];
                 output_csv( format!("{},{},{},{},{}\n",&record[4],&record[1],&record[7],cs.replace("\n",";"),des.replace("\n",";")),"./output/cve_refernce.csv").expect("error");
                 cves.push(format!("{}",&record[1]));
-                //output_csv( format!("{},{}\n",&record[4],&record[1]),"./output/cves.csv").expect("error");
             }
             if &record[3] =="None"{
                 let des= &record[9];
-                output_csv( format!("{},{}\n",&record[4],des.replace("\n",";")),"./output/host_information.csv").expect("error");
+                output_csv( format!("{},{},{},{},{},{}\n",&record[4],&record[1],&record[5],&record[6],&record[7],des.replace("\n",";")),"./output/host_information.csv").expect("error");
             }
             else{
                 continue
