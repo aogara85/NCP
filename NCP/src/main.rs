@@ -238,6 +238,9 @@ async fn main() {
             "-S" =>{
                 cve_scanner::nvd_scanner().await.expect("error");
             },
+            "-s" =>{
+                cve_scanner::jvndb_scanner().await.expect("error");
+            },
             _ =>()
         }
     }

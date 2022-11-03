@@ -1,4 +1,5 @@
 extern crate csv;
+use roxmltree;
 use serde_json::Value;
 use std::env;
 use std::io::Write;
@@ -33,6 +34,26 @@ pub async fn nvd_scanner() -> Result<(), Box<dyn std::error::Error>>{
 
     }
 
+    Ok(())
+}
+
+pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
+    let vulnid = "JVNDB-2021-014971";
+    let url = format!("https://jvndb.jvn.jp/myjvn?method=getVulnDetailInfo&feed=hnd&vulnId={}",vulnid);
+    let res = reqwest::get(&url).await?.text().await?;
+    let opt = roxmltree::ParsingOptions::default();
+    let doc = roxmltree::Document::parse_with_options(&res, opt).unwrap();
+    //nodeidのイテレーター
+    for id in doc.descendants(){
+        if id.is_element(){
+            println!("{:?}=={:?}",id.tag_name(),id.text());
+        }
+        else{
+            continue
+        }
+        //println!("{:?}=={:?}=={:?}=={:?}",id.attributes(),id.namespaces(),id.first_child(),id.first_element_child());
+
+    }
     Ok(())
 }
 
