@@ -41,8 +41,7 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
     let vulnid = "JVNDB-2021-014971";
     let url = format!("https://jvndb.jvn.jp/myjvn?method=getVulnDetailInfo&feed=hnd&vulnId={}",vulnid);
     let res = reqwest::get(&url).await?.text().await?;
-    let opt = roxmltree::ParsingOptions::default();
-    let doc = roxmltree::Document::parse_with_options(&res, opt).unwrap();
+    let doc = roxmltree::Document::parse(&res).unwrap();
     //nodeidのイテレーター
     for id in doc.descendants(){
         if id.is_element(){
