@@ -61,8 +61,8 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
 }
 
 pub  async fn payload_scanner()->Result<(), Box<dyn std::error::Error>>{
-    let token = "YOUR_TOKEN";
     let args:Vec<String> = env::args().collect();
+    let token = args[3];
     let client = reqwest::Client::new();
     let mut headers = header::HeaderMap::new();
     headers.insert("User-Agent","Awesome-Octocat-App".parse()?);
