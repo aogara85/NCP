@@ -61,9 +61,34 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
 }
 
 pub  async fn payload_scanner()->Result<(), Box<dyn std::error::Error>>{
+    let token = "YOUR_TOKEN";
+    let args:Vec<String> = env::args().collect();
+    let client = reqwest::Client::new();
+    let mut headers = header::HeaderMap::new();
+    headers.insert("User-Agent","Awesome-Octocat-App".parse()?);
+    headers.insert("Accept","application/vnd.github.json".parse()?);
+    headers.insert("Authorization",format!("Bearer {}",token).parse()?);
+    let search_query = format!("{} AND exploit in:readme followers:>0",args[2]);
+    //let search_query = "cve-2007-6750 AND exploit";
+    let url = format!("https://api.github.com/search/repositories?q={}",utf8_percent_encode(&search_query,NON_ALPHANUMERIC));
+    let res = client.get(&url).headers(headers).send().await?.text().await?;
+    let resj:Value = serde_json::from_str(&res).unwrap();
+    for result in 0..resj["items"].as_array().unwrap().len(){
+        println!("{},{},{}",resj["items"].as_array().unwrap()[result]["full_name"]
+        ,resj["items"].as_array().unwrap()[result]["html_url"]
+        ,resj["items"].as_array().unwrap()[result]["description"]);
+    }
+
+    //search code
+    //let search_query = "CVE-2021-20837 AND exploit";
+    //let url = format!("https://api.github.com/search/code?q={}",utf8_percent_encode(search_query,NON_ALPHANUMERIC));
+    // for result in 0..resj["items"].as_array().unwrap().len(){
+    //     println!("score:{} {}:{}",resj["items"].as_array().unwrap()[result]["score"],resj["items"].as_array().unwrap()[result]["repository"]["html_url"],resj["items"].as_array().unwrap()[result]["repository"]["description"]);
+    // }
     
     Ok(())
 }
+
 pub fn output_csv(contents:String,filepath:&str) -> Result<(),String>{
     let outpath:&Path=Path::new(&filepath);
     let mut outfile = match OpenOptions::new()
