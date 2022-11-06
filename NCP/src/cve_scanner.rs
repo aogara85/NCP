@@ -45,7 +45,11 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
     //nodeidのイテレーター
     for id in doc.descendants(){
         if id.is_element(){
-            println!("{:?}=={:?}",id.tag_name(),id.text());
+            let _result = match id.text(){
+                Some(r) => println!("{:?}:{}",id.tag_name().name(),r),
+                None => ()
+            };
+            //println!("{:?}=={:?}",id.tag_name(),id.text());
         }
         else{
             continue
@@ -56,6 +60,10 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
     Ok(())
 }
 
+pub  async fn payload_scanner()->Result<(), Box<dyn std::error::Error>>{
+    
+    Ok(())
+}
 pub fn output_csv(contents:String,filepath:&str) -> Result<(),String>{
     let outpath:&Path=Path::new(&filepath);
     let mut outfile = match OpenOptions::new()
