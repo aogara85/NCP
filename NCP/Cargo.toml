@@ -12,3 +12,4 @@ reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1.4", features = ["rt","rt-multi-thread", "macros"] }
 walkdir = "2"
 roxmltree = "0.15.1"
+percent-encoding = "2.2"

@@ -1,4 +1,6 @@
 extern crate csv;
+use reqwest::header;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use roxmltree;
 use serde_json::Value;
 use std::env;
@@ -43,6 +45,7 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
     let res = reqwest::get(&url).await?.text().await?;
     let doc = roxmltree::Document::parse(&res).unwrap();
     //nodeidのイテレーター
+    //elementがあるかないかで分岐。textははじめと終わりのタグ分二個ある。elementのある一つで良い。全てタグ名で管理されている。namespace,attributeには欲しい情報がない
     for id in doc.descendants(){
         if id.is_element(){
             let _result = match id.text(){
@@ -62,17 +65,19 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
 
 pub  async fn payload_scanner()->Result<(), Box<dyn std::error::Error>>{
     let args:Vec<String> = env::args().collect();
-    let token = args[3];
+    let token = &args[2];
+    //let token = "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";
     let client = reqwest::Client::new();
     let mut headers = header::HeaderMap::new();
     headers.insert("User-Agent","Awesome-Octocat-App".parse()?);
     headers.insert("Accept","application/vnd.github.json".parse()?);
     headers.insert("Authorization",format!("Bearer {}",token).parse()?);
-    let search_query = format!("{} AND exploit in:readme followers:>0",args[2]);
+    let search_query = format!("{} exploit OR scanner in:readme",args[3]);
     //let search_query = "cve-2007-6750 AND exploit";
     let url = format!("https://api.github.com/search/repositories?q={}",utf8_percent_encode(&search_query,NON_ALPHANUMERIC));
     let res = client.get(&url).headers(headers).send().await?.text().await?;
     let resj:Value = serde_json::from_str(&res).unwrap();
+    println!("{}",resj["total_count"]);
     for result in 0..resj["items"].as_array().unwrap().len(){
         println!("{},{},{}",resj["items"].as_array().unwrap()[result]["full_name"]
         ,resj["items"].as_array().unwrap()[result]["html_url"]
