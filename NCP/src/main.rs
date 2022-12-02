@@ -2,246 +2,112 @@
 extern crate csv;
 mod cve_scanner;
 use std::fs;
-use std::io;
-use std::path::Path;
 use std::env;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::{io::Write};
-use std::io::BufReader;
-use std::io::BufRead;
 extern crate walkdir;
-use walkdir::WalkDir;
-/*
-struct Record {
-    pluginid:String,
-    CVE:String
-    cvss2score:String,
-    risk:String,
-    host:String,
-    protocol:String,
-    port:String,
-    name:String,
-    synopsis:String,
-    description:String,
-    solution:String,
-    see_also:String,
-    plugin_output:String,
-    stig_severity:String,
-    cvss3_base_score:String,
-    cvss2_temporal_score:String,
-    cvss3_temporal_score:String,
-    risk_factor:String,
-    bid:String,
-    xref:String,
-    mskb:String,
-    plugin_publication_date:String,
-    plugin_modification_date:String,
-    metasploit:String,
-    core_impact:String,
-    canvas:String
-}
-*/
+mod result_extractor;
+mod result_csv_parser;
 
-// fn read_dir<P: AsRef<Path>>(dir_path: P) -> io::Result<Vec<String>> {
-//     Ok(fs::read_dir(dir_path)?
-//         .filter_map(|entry| {
-//             let entry = entry.ok()?;
-//             if entry.file_type().ok()?.is_file() {
-//                 match entry.path().extension(){
-//                     Some(t)=>t,
-//                     None=>panic!("Contains files with only an extension but no name")
-//                 };
-//                 if entry.path().extension().unwrap() == "csv"{
-//                     Some(entry.path().to_string_lossy().into_owned())
-//                 }
-//                 else{
-//                     None
-//                 }
-//             } else {
-//                 None
-//             }
-//         })
-//         .collect())
-// }
-fn read_dir(dir_path:&str) ->io::Result<Vec<String>>{
-    let mut filelist:Vec<String>= Vec::<String>::new();
-    for entry in WalkDir::new(dir_path) {
-        if entry.as_ref().unwrap().path().is_file(){
-            match entry.as_ref().unwrap().path().extension(){
-                Some(e) => {
-                    if e =="csv"{
-                        filelist.push(entry.unwrap().path().to_string_lossy().to_string())
-                    }
-                    else{
-                        continue
-                    }
-                },
-                None =>()
-            }
-        }
-        else{
-            continue
-        }
-    }
-    Ok(filelist)
-}
-// fn file_concatenation()-> Result<(), Box<dyn std::error::Error>>{
-//     let args:Vec<String> = env::args().collect();
-//     for filelist in read_dir(args[2].as_str()).unwrap(){
-//         println!("{}",filelist);
-//         let mut file = File::open(filelist.as_str())?;
-//         let mut buffer = String::new();
-//         file.read_to_string(&mut buffer).expect("read error");
-//         let outpath:&Path=Path::new("./output.csv");
-//         let mut outfile = match OpenOptions::new()
-//        .create(true)
-//        .write(true)
-//        .append(true)
-//        .open(outpath)    {
-//            Err(why) => panic!("Couldn't open {}: {}", "file", why),
-//            Ok(file) => file,
-//        };
-//        match outfile.write_all(buffer.as_bytes()) {
-//         Ok(_r) => {}, Err(_why) => println!("error")
-//     }
-//      }
-
-//     Ok(())
-// }
-
-fn file_concatenation()-> Result<(), Box<dyn std::error::Error>>{
-    let args:Vec<String> = env::args().collect();
-    if args[2].as_str()=="-d" || args[2].as_str()=="--directory"{
-        let mut filelist :Vec<String> = read_dir(args[3].as_str())?;
-        let mut counter = 0;
-        for file in &filelist{
-            println!("{} | {}",counter,file);
-            counter +=1
-        }
-        println!("--------------------------------------------");
-        println!("Specify the first column of the output csv.");
-        println!("Please type number:");
-        let mut type_number =String::new();
-        std::io::stdin().read_line(&mut type_number)?;
-        let target:u8 = type_number.trim().parse().unwrap();
-        fs::copy(&filelist[target as usize],"./output/concatenation.csv").expect("file cannot create");
-        filelist.remove(target as usize); 
-        for file in filelist{
-            let file = File::open(file.as_str())?;
-            let buffer = BufReader::new(file);
-            for (num,line) in buffer.lines().enumerate(){
-                if num !=0{
-                    let outpath:&Path=Path::new("./output/concatenation.csv");
-                    let mut outfile = match OpenOptions::new()
-                   .create(true)
-                   .write(true)
-                   .append(true)
-                   .open(outpath)    {
-                       Err(why) => panic!("Couldn't open {}: {}", "file", why),
-                       Ok(file) => file,
-                   };
-                   let _ = writeln!(outfile,"{}",line?);
-                }
-                else{
-                    continue
-                }
-            }
-    
-         }
-    }
-    else{
-        println!("Csv Concatenation mode Usage:");
-        println!("-d    --directory      Specify the directory path of Nessus csv reports")        
-    }
-
-    Ok(())
+fn show_help(){
+    println!("Nessus Auxiliary Tools");
+    println!("Usage :");
+    println!("      -N                            :  Nessus Auxiliary Functions mode.");
+    println!("      -N -t --token                 :  Token mode. Get API token. First of all, Please Nessus log in as a user using option -t to obtain a token.");
+    println!("                                    :  A configuration file is created in the current directory.");
+    println!("      -N -l --list                  :  List mode. Display the list of nessus scans.");
+    println!("      -N -m --multi -f --format     :  Multi Download mode. Multiple files can be downloaded. Specify the folder ID. Check the folder ID with the -l option.");
+    println!("      -N -s --single -f --format    :  Single Download mode. Single file can be downloaded. Specify the file ID. Check the file ID with the -l option.");
+    println!("                                    :  Select the file format to save from csv or json.");
+    println!("");
+    println!("      -C directory_path             :  csv files concatenation mode. Concatenate csv files in a directory.");
+    println!("      -P file_path                  :  csv parse mode. Specify the path of Summary Nessus csv file.");
+    println!("      -S cves_list_file             :  cve scanner mode.");           
 }
 
-fn csv_parser()->Result<(), Box<dyn std::error::Error>>{
-    let args:Vec<String> = env::args().collect();
-    if args[2].as_str()=="-f" || args[2].as_str()=="--file"{
-        let mut reader = csv::Reader::from_path(args[3].as_str())?;
-        let mut cves:Vec<String>=Vec::<String>::new();
-        output_csv( format!("CVE,Risk,Host,Protocol,Port,Name,Metasploit\n"),"./output/first_report.csv").expect("error");
-        output_csv( format!("Host,CVE,Name,See_Also,Descrition\n"),"./output/cve_refernce.csv").expect("error");
-        output_csv( format!("CVE\n"),"./output/cves.csv").expect("error");
-        output_csv( format!("Host,CVE,Protocol,Port,Name,Descrition\n"),"./output/host_information.csv").expect("error");
-        for record in reader.records() {
-            let record = record?;
-            if &record[3] != "None"{
-                output_csv( format!("{},{},{},{},{},{},{}\n",&record[1],&record[3],&record[4],&record[5],&record[6],&record[7],&record[23]),"./output/first_report.csv").expect("error");
-            }
-            if &record[3] != "None" && &record[1] != ""{
-                let des= &record[9]; 
-                let cs = &record[11];
-                output_csv( format!("{},{},{},{},{}\n",&record[4],&record[1],&record[7],cs.replace("\n",";"),des.replace("\n",";")),"./output/cve_refernce.csv").expect("error");
-                cves.push(format!("{}",&record[1]));
-            }
-            if &record[3] =="None"{
-                let des= &record[9];
-                output_csv( format!("{},{},{},{},{},{}\n",&record[4],&record[1],&record[5],&record[6],&record[7],des.replace("\n",";")),"./output/host_information.csv").expect("error");
-            }
-            else{
-                continue
-            }
-        }
-        cves.sort();
-        cves.dedup();
-        for line in cves{
-            output_csv( format!("{}\n",line),"./output/cves.csv").expect("error");
-        }
-    }
-    else{
-        println!("Csv Parser Usage:");
-        println!("-f    --file      Specify the path of Summary Nessus csv file")
-    }
-    Ok(())
+fn show_example(){
+    println!("Example :");
+    println!("       NCP.exe -N --single --format json 10");
+    println!("       NCP.exe -N -s -f json 10");
+    println!("       NCP.exe -N -m -f csv 10");
+    println!("       NCP.exe -C ./input");
+    println!("       NCP.exe -P ./output/concatenation.csv");
+    println!("       NCP.exe -S ./output/cves.csv");
 }
 
-pub fn output_csv(contents:String,filepath:&str) -> Result<(),String>{
-    let outpath:&Path=Path::new(&filepath);
-    let mut outfile = match OpenOptions::new()
-   .create(true)
-   .write(true)
-   .append(true)
-   .open(outpath)    {
-       Err(why) => panic!("Couldn't open {}: {}", "file", why),
-       Ok(file) => file,
-   };
-   match outfile.write_all(contents.as_bytes()) {
-    Ok(_r) => {}, Err(_why) => return Err(format!("Could not to write file: {}", outpath.display()))
-}
-    Ok(())
-}
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args:Vec<String> = env::args().collect();
     match fs::create_dir("output") {
         Err(_why) => {},
         Ok(_) => {},
     }
     if args.len()<=1{
-        println!("Usage :");
-        println!("-C        csv files concatenation mode");
-        println!("-P        csv parse mode");
-        println!("-S        cve scanner mode");   
+        show_help();
+        show_example();
     }
     else{
         match args[1].as_str(){
+            "-N" => {
+                match args[2].as_str(){
+                    "-t" | "--token" => {
+                        result_extractor::create_config().await?;
+                    },
+                    "-l" | "--list"=> {
+                        result_extractor::list_scanid().await?;
+                    }
+                    "-m" | "--multi"=> {
+                        match args[3].as_str(){
+                            "-f" | "--format" => {
+                                match args[4].as_str(){
+                                    "json" => {
+                                        result_extractor::download_json(args[5].parse()?,true).await?;
+                                    },
+                                    "csv" => {
+                                        result_extractor::download_csv(args[5].parse()?, true).await?;
+                                    }
+                                    _ => println!("File formats that can be specified are csv and json.")
+                                }
+        
+                            },
+                            _ => println!("Please -f or --format option.")
+                        }
+                    }
+                    "-s" | "--single"=> {
+                        match args[3].as_str(){
+                            "-f" | "--format" => {
+                                match args[4].as_str(){
+                                    "json" => {
+                                        result_extractor::download_json(args[5].parse()?,false).await?;
+                                    },
+                                    "csv" => {
+                                        result_extractor::download_csv(args[5].parse()?, false).await?;
+                                    }
+                                    _ => println!("File formats that can be specified are csv and json.")
+                                }
+        
+                            },
+                            _ => println!("Please -f or --format option.")
+                        }
+                    }
+                    _ => show_help()
+                }
+            }
             "-C" => {
-                file_concatenation().expect("Usage:-C -d directory");
+                result_csv_parser::file_concatenation(args[2].as_str()).expect("Usage -C Directory_path");
             },
             "-P" => {
-                csv_parser().expect("Usage -P -f csv file");
+                result_csv_parser::csv_parser(args[2].as_str())?;
             },
             "-S" =>{
-                cve_scanner::nvd_scanner().await.expect("error");
+                cve_scanner::nvd_scanner(args[2].as_str()).await?;
             },
             "-s" =>{
-                cve_scanner::jvndb_scanner().await.expect("error");
+                cve_scanner::jvndb_scanner().await?;
             },
-            _ =>()
+            "-e" =>{
+                cve_scanner::payload_scanner(args[2].to_string(),args[3].to_string()).await.expect("error");
+            },
+            _ => show_help()
         }
     }
+    Ok(())
 }
