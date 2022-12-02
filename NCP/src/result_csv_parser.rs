@@ -32,7 +32,6 @@ pub fn file_concatenation(dirpath:&str)-> Result<(), Box<dyn std::error::Error>>
     pb.set_style(ProgressStyle::with_template("{spinner:.yellow} {elapsed_precise} [{percent:>1}%] {bar:50.green/cyan} {pos:>5}/{len:5} {msg}")
     .unwrap()
     .progress_chars("#>-")); 
-
     for file in filelist{
         let fp = File::open(file.as_str())?;
         let buffer = BufReader::new(fp);
@@ -48,17 +47,17 @@ pub fn file_concatenation(dirpath:&str)-> Result<(), Box<dyn std::error::Error>>
                     Ok(file) => file,
                 };
                 let _ = writeln!(outfile,"{}",line?);
-                //プログレスバーのメッセージ処理
-                count+=1;
-                pb.set_position(count);
-                pb.set_message(format!("{} concatenate",file));
             }
             else{
                 continue
             }
         }
-        pb.finish_with_message(format!("File consolidation is complete!"));
+        //プログレスバーのメッセージ処理
+        count+=1;
+        pb.set_position(count);
+        pb.set_message(format!("{} concatenate",file));
         }
+        pb.finish_with_message(format!("File consolidation is complete!"));
     Ok(())
 }
 
