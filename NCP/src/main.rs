@@ -28,7 +28,7 @@ fn show_example(){
     println!("       NCP.exe -N --single --format json 10");
     println!("       NCP.exe -N -s -f json 10");
     println!("       NCP.exe -N -m -f csv 10");
-    println!("       NCP.exe -C ./input");
+    println!("       NCP.exe -C ./output/10");
     println!("       NCP.exe -P ./output/concatenation.csv");
     println!("       NCP.exe -S ./output/cves.csv");
 }

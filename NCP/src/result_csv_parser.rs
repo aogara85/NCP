@@ -8,6 +8,7 @@ use std::fs::OpenOptions;
 use std::{io::Write};
 use std::io::BufReader;
 use std::io::BufRead;
+use indicatif::{ProgressBar, ProgressStyle};
 
 pub fn file_concatenation(dirpath:&str)-> Result<(), Box<dyn std::error::Error>>{
     let mut filelist :Vec<String> = read_dir(dirpath)?;
@@ -23,10 +24,18 @@ pub fn file_concatenation(dirpath:&str)-> Result<(), Box<dyn std::error::Error>>
     std::io::stdin().read_line(&mut type_number)?;
     let target:u8 = type_number.trim().parse().unwrap();
     fs::copy(&filelist[target as usize],"./output/concatenation.csv").expect("file cannot create");
-    filelist.remove(target as usize); 
+    filelist.remove(target as usize);
+    //プログレスバーの設定
+    let total_size = filelist.len();
+    let mut count = 0;
+    let pb = ProgressBar::new(total_size.try_into().unwrap());
+    pb.set_style(ProgressStyle::with_template("{spinner:.yellow} {elapsed_precise} [{percent:>1}%] {bar:50.green/cyan} {pos:>5}/{len:5} {msg}")
+    .unwrap()
+    .progress_chars("#>-")); 
+
     for file in filelist{
-        let file = File::open(file.as_str())?;
-        let buffer = BufReader::new(file);
+        let fp = File::open(file.as_str())?;
+        let buffer = BufReader::new(fp);
         for (num,line) in buffer.lines().enumerate(){
             if num !=0{
                 let outpath:&Path=Path::new("./output/concatenation.csv");
@@ -39,12 +48,16 @@ pub fn file_concatenation(dirpath:&str)-> Result<(), Box<dyn std::error::Error>>
                     Ok(file) => file,
                 };
                 let _ = writeln!(outfile,"{}",line?);
+                //プログレスバーのメッセージ処理
+                count+=1;
+                pb.set_position(count);
+                pb.set_message(format!("{} concatenate",file));
             }
             else{
                 continue
             }
         }
-
+        pb.finish_with_message(format!("File consolidation is complete!"));
         }
     Ok(())
 }
