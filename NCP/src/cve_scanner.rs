@@ -42,7 +42,7 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
     for id in doc.descendants(){
         if id.is_element(){
             let _result = match id.text(){
-                Some(r) => println!("{:?}:{}",id.tag_name().name(),r),
+                Some(r) => println!("{}:{}",id.tag_name().name(),r),
                 None => ()
             };
             //println!("{:?}=={:?}",id.tag_name(),id.text());
@@ -51,18 +51,22 @@ pub async fn jvndb_scanner()->Result<(), Box<dyn std::error::Error>>{
             continue
         }
         //println!("{:?}=={:?}=={:?}=={:?}",id.attributes(),id.namespaces(),id.first_child(),id.first_element_child());
-
     }
+    // let url2 = format!("https://jvndb.jvn.jp/myjvn?method=getVulnOverviewList&feed=hnd&dateFirstPublishedStartY=2022&dateFirstPublishedStartM=11&dateFirstPublishedStartD=2");
+    // let res2 = reqwest::get(&url2).await?.text().await?;
+    // let doc2 = roxmltree::Document::parse(&res2).unwrap();
+    // println!("{:?}",res2);
     Ok(())
 }
-
+//検索ワード参照
+//https://docs.github.com/ja/search-github/getting-started-with-searching-on-github/about-searching-on-github
 pub  async fn payload_scanner(token:String,query:String)->Result<(), Box<dyn std::error::Error>>{
     let client = reqwest::Client::new();
     let mut headers = header::HeaderMap::new();
     headers.insert("User-Agent","Awesome-Octocat-App".parse()?);
     headers.insert("Accept","application/vnd.github.json".parse()?);
     headers.insert("Authorization",format!("Bearer {}",token).parse()?);
-    let search_query = format!("{} exploit OR scanner in:readme",query);
+    let search_query = format!("{} exploit OR scanner in:readme created:>2022-11-01",query);
     //let search_query = "cve-2007-6750 AND exploit";
     let url = format!("https://api.github.com/search/repositories?q={}",utf8_percent_encode(&search_query,NON_ALPHANUMERIC));
     let res = client.get(&url).headers(headers).send().await?.text().await?;
